@@ -1,6 +1,8 @@
 ---
 title: "EDA"
 editor: visual
+author:
+    name: Wenlin Ye
 date: "`r Sys.Date()`"
 format:
     html:
@@ -19,13 +21,11 @@ This dataset consists of medical records for patients at a University hospital o
 
 # Initial questions
 
-1.Can we identify specific laboratory tests or combinations of tests that are strongly associated with thrombosis, and can these tests be used to predict the likelihood of thrombosis in patients?
+1.How does the sex of patients with collagen diseases impact their laboratory test results, and are there any differences in the test results or disease severity between male and female patients?
 
-2.Are there any temporal patterns in laboratory test results or symptom onset that are specific to certain collagen diseases, and can these patterns be used to improve the accuracy of disease classification?
+2.Are there any patterns in laboratory test results or symptom onset (specific collagen disease subtypes e.g., C3 C4) that are specific to certain collagen diseases, and can these patterns be used to improve the accuracy of disease classification?
 
-3.How does the age and sex of patients with collagen diseases impact their laboratory test results, and are there any differences in the test results or disease severity between male and female patients in different age groups?
-
-How do different demographic factors, such as age and sex, affect the prevalence of thrombosis in patients with collagen diseases? Are there any specific laboratory test results (e.g., ANA, aCL IgG, or aCL IgM) that show a strong correlation with the occurrence of thrombosis in these patients? Do specific collagen disease subtypes (e.g., C3 C4) exhibit unique temporal patterns in lab results that can help differentiate them from other subtypes?
+3.Are there any Special laboratory test results (e.g., ANA, aCL IgG, or aCL IgM) that show a strong correlation with the occurrence of thrombosis in these patients? 
 
 # Data Ingestion, cleaning, and munging
 
@@ -60,9 +60,8 @@ tidy_data <- combined_data %>%
   drop_na(examination_date) # Optionally, remove rows with missing IDs
 
 
-
 #subset dataset for required columns of analysis
-tidy_data <- subset(tidy_data , select=c("id", "sex", "birthday", "diagnosis.x", "examination_date", "a_cl_ig_g", "a_cl_ig_m", "ana", "ana_pattern", "diagnosis.y", "thrombosis",'date'))
+tidy_data <- subset(tidy_data , select=c("id", "sex", "birthday", "diagnosis.x", "examination_date", "a_cl_ig_g", "a_cl_ig_m", "ana", "ana_pattern", "diagnosis.y", "thrombosis",'date','c_3','c_4'))
 
 
 # Replace blank values
@@ -81,9 +80,88 @@ tidy_data <- na.omit(tidy_data)
 
 
 write.csv(tidy_data, file = "tidy_data.csv", row.names = FALSE)
+
+da<-tidy_data
+# rename column names for the analytic data set
+colnames(da) <- c("id", "sex", "birthday", 'diagnosis',"e_date", "igg", "igm", "ana",'ana_p',"y","thrombosis", "C3", "C4")
+```
+
+```{r warning=FALSE}
+
+# modiify data properties to that is convenient for us to analyze 
+da$C4 <- as.numeric(da$C4)
+da$thrombosis[da$thrombosis == 3] <- 2
+da$thrombosis <- as.character(da$thrombosis)
+
+#rescale all the igg and igm data into normal range 
+da$igg <- ifelse(da$igg > 50 & da$igg < 99, da$igg * 0.1,
+                  ifelse(da$igg > 99 & da$igg < 2000, da$igg * 0.01, da$igg))
+da$igm <- ifelse(da$igm > 10 & da$igm < 99, da$igm * 0.1,
+                  ifelse(da$igm > 99 & da$igm < 2000, da$igm * 0.01,
+                         ifelse(da$igm > 100000 & da$igm < 200000, da$igm * 0.000001, da$igm)))
+
+
+# here the ana data does not need rescale we use the normal range for ana adult level by a division of 1:160
+```
+
+we use summary here to generate all the numerical information for the variable C3, and here we gonna set the 66 to 160 milligrams per deciliter (mg/dL) as a complement levels range, indicating that under 66 milligrams per deciliter level would be abnormal low and above 160 milligrams per deciliter would be abnormal high.
+
+```{r}
+da$C3 <- as.numeric(da$C3)
+summary(da$C3)
+```
+
+```{r message=FALSE}
+# create a new column for C3 labels
+da$C3_label <- ""
+
+# classify C3 values based on the given range
+da$C3_label[da$C3 < 66] <- "Abnormal Low"
+da$C3_label[da$C3 >= 66 & da$C3 <= 150] <- "Normal Range"
+da$C3_label[da$C3 > 150] <- "Abnormal High"
+
+
+# create new variables for C3 levels based on thrombosis status
+da$C3_low <- ifelse(da$C3 < 66, 1, 0)
+da$C3_normal <- ifelse(da$C3 >= 66 & da$C3 <= 160, 1, 0)
+da$C3_high <- ifelse(da$C3 > 160, 1, 0)
+
+# create new variables based on thrombosis status
+da$C3_low_thromb <- ifelse(da$thrombosis == 0 & da$C3_low == 1, 1, 0)
+da$C3_normal_thromb <- ifelse(da$thrombosis == 0 & da$C3_normal == 1, 1, 0)
+da$C3_high_thromb <- ifelse(da$thrombosis == 0 & da$C3_high == 1, 1, 0)
+da$C3_low_thromb1 <- ifelse(da$thrombosis == 1 & da$C3_low == 1, 1, 0)
+da$C3_normal_thromb1 <- ifelse(da$thrombosis == 1 & da$C3_normal == 1, 1, 0)
+da$C3_high_thromb1 <- ifelse(da$thrombosis == 1 & da$C3_high == 1, 1, 0)
+da$C3_low_thromb2 <- ifelse(da$thrombosis == 2 & da$C3_low == 1, 1, 0)
+da$C3_normal_thromb2 <- ifelse(da$thrombosis == 2 & da$C3_normal == 1, 1, 0)
+da$C3_high_thromb2 <- ifelse(da$thrombosis == 2 & da$C3_high == 1, 1, 0)
+
+library(dplyr)
+
+# Classify C3 levels into categories based on thrombosis status
+da <- da %>%
+  mutate(category = case_when(
+    da$C3 < 66 ~ "abnormal low",
+    da$C3 > 160 ~ "abnormal high",
+    TRUE ~ "normal range"
+  ))
+
+# Group and summarize by thrombosis status and category
+summary <- da %>%
+  group_by(thrombosis, category) %>%
+  summarize(number = n()) %>%
+  ungroup()
+
+# Print the summary table
+summary
+
+
 ```
 
 # Exploratory Visual Analysis
+
+Phase 1
 
 ```{r}
 # Load the tidy dataset
@@ -93,14 +171,17 @@ tidy_data <- read.csv("tidy_data.csv", header = TRUE)
 str(tidy_data)
 
 # Print summary statistics of numerical variables
-summary(tidy_data$value)
 
-head(tidy_data)
+#summary(tidy_data$value)
+
+
+
+head(da)
 ```
 
 Examine relationships among variables using scatterplots or correlation matrices
 
-```{r}
+```{r message=FALSE}
 
 # Verify the distribution of thrombosis across different diagnoses
 # Convert diagnosis.y column into a format that can be easily summarized
@@ -128,8 +209,6 @@ print(cor_matrix)
 
 ```
 
-phase 2
-
 To get a better sense of the distribution of each variable, we can create a histogram or density plot. For example, to create a histogram of the sex variable
 
 ```{r}
@@ -148,26 +227,194 @@ This chart shows that there are more female patients than male patients in the d
 ggplot(tidy_data, aes(x=ana, y=a_cl_ig_g, color=thrombosis)) +
   geom_point() +
   labs(title="Relationship between ANA, aCL IgG, and Thrombosis")
-
-# Investigate temporal patterns in lab results for different collagen disease subtypes:
 ```
 
-In the second phase of the analysis, we investigated three specific research questions using data visualizations. We plotted the prevalence of thrombosis by age and sex, the correlation between specific lab results and the occurrence of thrombosis, and the temporal patterns of lab results for each collagen disease subtype. Our findings can be used to gain insights into the relationships among the variables and to inform future research.
+We plotted the prevalence of thrombosis by age and sex, the correlation between specific lab results and the occurrence of thrombosis, and the temporal patterns of lab results for each collagen disease subtype. Our findings can be used to obtain deeper illuminations into the relationships among the variables and to inform ensuing research.
 
-# Generate publication quality plots
+In the second phase of the analysis, we shall give visualizations regarding our initial questions
+
+## Plot 1 regarding first question
+
+First, we research how the sex of patients with collagen diseases impact their laboratory test results, and if there any differences in the test results or disease severity between male and female patients.
 
 ```{r}
+library(ggplot2)
 
+sex_count <- table(da$thrombosis, da$sex)
+library(ggplot2)
+
+# Create data frame with sex count
+sex_count <- data.frame(thrombosis = c(0, 1, 2),
+                        F = c(144, 26, 19),
+                        M = c(13, 2, 1))
+
+# Reshape data frame to long format
+sex_count_long <- reshape2::melt(sex_count, id.vars = "thrombosis")
+
+# Create bar plot
+sex_plot <- ggplot(sex_count_long, aes(x = thrombosis, y = value, fill = variable)) +
+  geom_bar(stat = "identity", position = "dodge", color = "black") +
+  xlab("Degree of Thrombosis") +
+  ylab("Total number") +
+  ggtitle("Relationship between Degree of Thrombosis and Sex") +
+  scale_fill_manual(values = c("pink", "lightblue"),
+                    labels = c("Female", "Male")) +
+  theme(axis.line = element_line(colour = "black"),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+
+sex_plot
+
+ggsave("plot-01.png", plot = sex_plot, width = 8, height = 6, dpi = 300)
+
+```
+
+## Plot 2 regarding second question
+
+Then we try to determine if there any temporal patterns in laboratory test results or symptom onset (specific collagen disease subtypes e.g., C3 C4) that are specific to certain collagen diseases
+
+```{r}
+library(ggplot2)
+
+C3plot<- ggplot(summary, aes(x = thrombosis, y = number, fill = category)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("abnormal low" = "#d7191c", "normal range" = "#fdae61", "abnormal high" = "#2c7bb6")) +
+  labs(title = "Relationship between Thrombosis and C3 Level", x = "Thrombosis", y = "Number of Cases", fill = "C3 Category") +
+  theme_minimal()
+
+C3plot
+
+ggsave("plot-02.png", plot = C3plot, width = 8, height = 6, dpi = 300)
+
+```
+
+## Plot 3 regarding third question
+
+here we generate three plots using thrombosis and igg igm ana variables to investigate their relationships
+
+```{r}
+library(ggplot2)
+
+ana_plot <- ggplot(da, aes(x = thrombosis, y = ana, group = thrombosis, fill = thrombosis)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#F0E442", "#0072B2", "#D55E00")) +
+  xlab("Degree of Thrombosis") +
+  ylab("ANA level") +
+  ggtitle("Relationship between Level of Thrombosis and ANA")
+
+ana_plot + theme_bw() + theme(plot.title = element_text(size = 14, face = "bold"),
+                              axis.title = element_text(size = 12, face = "bold"),
+                              axis.text = element_text(size = 10),
+                              legend.title = element_blank(),
+                              legend.text = element_text(size = 10))
+ggsave("plot-03.png", plot = ana_plot, width = 8, height = 6, dpi = 300)
+
+```
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+
+# Set theme options
+theme_set(theme_pubr())
+
+# Create plot
+igmplot <- ggplot(da, aes(x=thrombosis, y=igm, fill=thrombosis)) + 
+  geom_boxplot(color="black", outlier.color="black", alpha=0.8, width=0.5) +
+  scale_fill_manual(values=c("#5B9BD5", "#ED7D31", "#A5A5A5")) +
+  labs(x = "Degrees of Thrombosis", y = "IgM Level", title = "Relationship between Level of Thrombosis and IgM") +
+  theme(axis.line = element_line(colour = "black"),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+
+igmplot
+# Save plot as PNG
+ggsave("plot-04.png", plot = igmplot, width = 8, height = 6, dpi = 300)
+
+```
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+
+# Set theme options
+theme_set(theme_pubr())
+
+# Create plot
+iggplot <- ggplot(da, aes(x=thrombosis, y=igg, fill=thrombosis)) + 
+  geom_boxplot(color="black", outlier.color="black", alpha=0.8, width=0.5) +
+  scale_fill_manual(values=c("#5B9BD5", "#ED7D31", "#A5A5A5")) +
+  labs(x = "Degrees of Thrombosis", y = "IgG Level", title = "Relationship between Level of Thrombosis and IgG") +
+  theme(axis.line = element_line(colour = "black"),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14, face = "bold"),
+        legend.position = "none",
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+
+iggplot
+
+
+# Save plot as PNG
+ggsave("plot-05.png", plot = iggplot, width = 8, height = 6, dpi = 300)
+```
+
+I tried different styles of plot of degree of thrombosis vs igg igm and ana level in order for me to select united versions for final plots
+
+# Final plots
+
+```{r, echo=FALSE, fig.align='center', fig.cap= "Figure 1 Relationship between Degrees of Thrombosis and Sex"}
+knitr::include_graphics("plot-01.png")
+```
+
+
+```{r, echo=FALSE, fig.align='center', fig.cap= "Figure 2 Relationship between Degrees of Thrombosis and C3 level"}
+knitr::include_graphics("plot-02.png")
+```
+
+
+
+```{r, echo=FALSE, fig.align='center', fig.cap= "Figure 3 Relationship between Level of Thrombosis and ANA"}
+knitr::include_graphics("plot-03.png")
+```
+
+
+
+```{r, echo=FALSE, fig.align='center', fig.cap= "Figure 4 Relationship between Level of Thrombosis and IgM"}
+knitr::include_graphics("plot-04.png")
+```
+
+
+```{r, echo=FALSE, fig.cap = "Figure 5 Relationship between Level of Thrombosis and IgG"}
+knitr::include_graphics("plot-05.png")
 ```
 
 # Technical summary
 
-```{r}
 
-```
+After analyzing dataset specializing in collagen diseases, we thoroughly understand the shape and structure of the data, identify any data quality issues, and find relationships among the variables. We then investigated three research questions related to thrombosis in patients with collagen diseases.
 
-# Non-technical report
+When it comes to the first research question, we created a bar plot to visualize the relationship between degree of thrombosis and sex. The sex and thrombosis count  shows the filtered number of patients by sex. There are a total of 204 patients, the majority of patients about 80% did not have thrombosis, while 28 had thrombosis degree 1 and 19 had thrombosis degree 2. The bar plot showed that there are fewer male patients in each thrombosis degree category, and thrombosis was more common in females than males.
 
-```{r}
+Afterwards, the plot 2 investigates the relationship between thrombosis and C3 level, we classified C3 levels into categories based on thrombosis status that are abnormal high, abnormal low, and normal range, and created a stacked bar plot to visualize the distribution of C3 levels for each thrombosis status. The stacked bar plot indicated that the proportion of abnormal low C3 levels was higher in patients with thrombosis than those without thrombosis. As we can directly observe from the bar plot, non thrombosis patients has relatively large amounts of C3 level in normal range, meanwhile, if we focus on the positive and even severe thrombosis patients, about half of them has abnormal low level of C3, indicating that C3 lab test results are likely to be correlated with the degree of thrombosis, and since the abnormal high data was in deficiency, it is difficult to tap into further visualization on C3 level.
 
-```
+Finally, conducted exploratory data analysis using boxplot to investigate the relationship between thrombosis and IgG/IgM levels as well as ANA levels. The box plot for IgG and Igm both manifest IgG and IgM level are higher in patients with positive thrombosis than those without thrombosis and positve and severe thrombosis. In addition, the measure of the spread for Igm level of positive thrombosis was quite long, meaning it is unreliable to just focus on this results. For both of the IgG and IgM with negative thrombosis, the points that lie outside the whiskers, which are beyond the upper quartile are too much, and this could hinder our deduction due to extreme values. However, thrombosis degree 1 and 2 for both levels did not show any extra irregular values compared to patients without thrombosis.ANA levels depending on degrees of thrombosis has sorts of problems since the box plot for patients with and without thrombosis did not show any clear difference their lower or higher quartile and median. And also, the ANA level for severe thrombosis patients has vague range of level intervals, which urged us to take more data or switch level standards.
+
+
+ 

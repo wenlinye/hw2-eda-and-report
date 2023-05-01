@@ -1,0 +1,82 @@
+---
+title: "EDA"
+editor: visual
+author:
+    name: Wenlin Ye
+date: "`r Sys.Date()`"
+format:
+    html:
+        toc: true
+        embed-resources: true
+        theme: default
+        code-copy: true
+        code-line-numbers: true
+        number-sections: true
+        highlight-style: github
+---
+
+# Non-technical report
+
+## Background & Initial questions
+
+This thrombosis analysis with regard to collagen diseases was based on dataset that consists of medical records for patients at a University hospital outpatient clinic specializing in collagen diseases. The data is divided into three tables that can be connected using patient ID numbers. All they contain are basic patient information and diagnosis details, the information on examination dates, lab results, and thrombosis occurrences, and a comprehensive list of laboratory test results. The main goals of this study are to identify patterns for detecting and predicting thrombosis, find temporal patterns related to thrombosis and collagen diseases, and classify collagen diseases accurately.
+
+1.How does the sex of patients with collagen diseases impact their laboratory test results, and are there any differences in the test results or disease severity between male and female patients?
+
+2.Are there any patterns in laboratory test results or symptom onset (specific collagen disease subtypes e.g., C3 C4) that are specific to certain collagen diseases, and can these patterns be used to improve the accuracy of disease classification?
+
+3.Are there any Special laboratory test results (e.g., ANA, aCL IgG, or aCL IgM) that show a strong correlation with the occurrence of thrombosis in these patients?
+
+## Plot 1 regarding first question
+
+First, we deal with questios about how the sex of patients with collagen diseases impact their laboratory test results, and if there any differences in the test results or disease severity between male and female patients.
+
+```{r, echo=FALSE, fig.align='center', fig.cap= "Figure 1 Relationship between Degrees of Thrombosis and Sex"}
+knitr::include_graphics("plot-01.png")
+```
+
+Figure 1 shows the bar plot of sex and thrombosis count. With x equals total number of patients discerned by male and female, and y represents different degrees of thrombosis, We found that 157 (80%) of patients did not have thrombosis, where female occupies 143 and male shares 13, while 28 had thrombosis degree 1 with 26 female and 2 male, and 19 had thrombosis degree 2 with 18 female and 1 male. This means statistically 91% patients are female, and of the 47 patients with thrombosis, almost 94% patients are female. The result shown in figure 1 is consistent with the existing literature on collagen diseases, where it is well-documented that women are more likely to develop thrombosis than men. In this way, we tend to draw a solid conclusion that there are fewer male patients in each thrombosis degree category, and thrombosis was more common in females than males.
+
+## Plot 2 regarding second question
+
+```{r, echo=FALSE, fig.align='center', fig.cap= "Figure 2 Relationship between Degrees of Thrombosis and C3 level"}
+knitr::include_graphics("plot-02.png")
+```
+
+In figure 2, we can see there is a stacked bar plot that visualizes the distribution of C3 levels for each thrombosis status, With x equals total number of patients categorized by complement 3 levels, and y represents different degrees of thrombosis filled in red, orange and dark blue color. We classified C3 levels into abnormal high, abnormal low, and normal range based on thrombosis status. Statistically saying, of the 157 patients without thrombosis, 61 patients have low C3 level and 89 patients are nornal, and only 7 of their C3 level are over high. However, when we put our sight on those with thrombosis or severe symptoms, over half of the patients have the symptoms of low C3 levels.
+
+The stacked bar plot indicates that the proportion of abnormal low C3 levels was higher in patients with thrombosis than those without thrombosis. Patients without thrombosis had relatively large amounts of C3 level in normal range, while about half of the positive and even severe thrombosis patients had abnormal low levels of C3. This indicates that C3 lab test results are likely to be correlated with the degree of thrombosis.
+
+In general, this visualization highlights the importance of monitoring C3 levels in patients with collagen diseases, especially in those with thrombosis. It suggests that patients with low C3 levels may be at a higher risk for developing thrombosis and may need closer caring and potentially precaution strategies. However, it is worth noting that the number of patients with abnormal high C3 levels was relatively small in our dataset, so further investigation is needed.
+
+## Plot 3 regarding third question
+
+```{r, echo=FALSE, fig.align='center', fig.cap= "Figure 3 Relationship between Level of Thrombosis and ANA"}
+knitr::include_graphics("plot-03.png")
+```
+
+Figure 3 shows the relationship between thrombosis and ANA levels using a box plot, where x equals total number of patients categorized by complement 3 levels, and y represents different degrees of thrombosis filled in yellow, steel blue and light brown color. The box plot did not show any clear relationship between ANA levels and thrombosis status. Antinuclear antibodies (ANA) are a group of autoantibodies produced by the immune system that target nuclear antigens in the body's cells whose tests are widely used to aid in the diagnosis of autoimmune diseases. Our plot showed no significant correlation between ANA levels and thrombosis status. This probably suggests that ANA levels are not a good predictor of thrombosis risk in patients with collagen diseases. However, we did observe that the ANA level for severe thrombosis patients had a vague range of level intervals, which urged us to take more data while doing data munging or switch level standards.
+
+## Plot 4, and 5 regarding third question
+
+```{r, echo=FALSE, fig.align='center', fig.cap= "Figure 4 Relationship between Level of Thrombosis and IgM"}
+knitr::include_graphics("plot-04.png")
+```
+
+```{r, echo=FALSE, fig.cap = "Figure 5 Relationship between Level of Thrombosis and IgG"}
+knitr::include_graphics("plot-05.png")
+```
+
+Thrombosis and IgG/IgM Level:
+
+In figure 4 and 5, we see it shows the relationship between thrombosis and IgG/IgM levels using box plots. The box plot for IgG and IgM both indicate that IgG and IgM levels are higher in patients with positive thrombosis than those without thrombosis and positive and severe thrombosis.
+
+The box plot for IgG shows that the median IgG level in patients with positive thrombosis was approximately 2-fold higher than in patients without thrombosis (3 vs 1.5, respectively). The interquartile range (IQR) for IgG levels in patients with positive thrombosis was also wider than in those without thrombosis, with an IQR of approximately 5 vs 2.7, respectively. For IgM, the median level in patients with positive thrombosis was slightly higher than in those without thrombosis (2.7 vs 2.4, respectively), but the difference was more obvious for IgG. The IQR for IgM levels in patients with positive thrombosis was also wider than in those without thrombosis, with an IQR of approximately 4 vs 2.3, respectively.
+
+When we look at the number of outliers, which are data points that lie outside the whiskers, we can see that there were more outliers for IgG and IgM levels in patients without thrombosis than in those with thrombosis. For example, in patients with negative thrombosis, there were 16 outliers for IgG levels, with values ranging from approximately 7 to 26, whereas in patients with positive thrombosis, there were only 3 outliers, with values of approximately 16, 24 and 28 Similarly, for IgM levels, there were 7 outliers in patients without thrombosis, with values ranging from approximately 6.9 to 9, whereas in patients with positive thrombosis, there were only 1 outlier, with values of approximately 8.6.
+
+In general, these findings suggest that IgG and IgM levels are higher in patients with positive thrombosis than in those without thrombosis, and that there is greater variability in these levels in patients with positive thrombosis. However, the presence of outliers in patients without thrombosis suggests that extreme values can occur in these patients as well, making it important to consider individual patient data when interpreting these results.
+
+## Summary
+
+In conclusion, this analysis of a dataset specializing in collagen diseases has provided remarkable illuminations into the relationship between thrombosis and various sepcial or regular laboratory tests stored in Hospital Information Systems. The results suggest that women are more likely to develop thrombosis than men, and that low C3 levels may be a risk factor for thrombosis in patients with collagen diseases. However, the relationship between ANA levels and thrombosis status was not clear, and further investigation is needed. The analysis also showed that IgG and IgM levels are higher in patients with positive thrombosis than in those without thrombosis, but extreme values can occur in patients without thrombosis as well. Overall, these findings provide limited but useful information for clinicians in monitoring and managing patients with collagen diseases, and remind us of doing more continued research in this field.
